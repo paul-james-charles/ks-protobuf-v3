@@ -6,12 +6,12 @@ authors = [ "Paul Charles <paul_charles@hotmail.co.uk>" ]
 description = "A package that implements Protocol Buffers version 3"
 readme = "README.md"
 repository = "https://github.com/paul-james-charles/ks-protobuf-v3"
-license = "MIT"
 license-file = "LICENSE"
 keywords = [ "serialization", "deserialization"]
 
 [dependencies]
 
 [dev-dependencies]
+rstest = "0.13.0"
 
 [features]
