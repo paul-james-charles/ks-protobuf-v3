@@ -43,7 +43,16 @@ pub trait Fixed32 {
 ///
 /// These fields include the field number, the type of wire type encoding and the value of the
 /// attached type encoded.
-pub trait Fixed32Field: Fixed32 {}
+pub trait Fixed32Field: Fixed32 {
+    /// This function writes out a fixed32 field to the Protocol Buffer.
+    fn to_fixed32_field(&self, field_number: u32, buffer: &mut Buffer) -> usize {
+        let tag = Tag::new(field_number, WireType::Fixed32);
+
+        let size1 = tag.to_varint(buffer);
+        let size2 = self.to_fixed32(buffer);
+        size1 + size2
+    }
+}
 
 /// This trait can be applied to types to enable them to encode and decode value to and from
 /// Protocol Buffers with the Fixed32 wire type.
@@ -61,7 +70,16 @@ pub trait Fixed64 {
 ///
 /// These fields include the field number, the type of wire type encoding and the value of the
 /// attached type encoded.
-pub trait Fixed64Field: Fixed64 {}
+pub trait Fixed64Field: Fixed64 {
+    /// This function writes out a fixed32 field to the Protocol Buffer.
+    fn to_fixed64_field(&self, field_number: u32, buffer: &mut Buffer) -> usize {
+        let tag = Tag::new(field_number, WireType::Fixed64);
+
+        let size1 = tag.to_varint(buffer);
+        let size2 = self.to_fixed64(buffer);
+        size1 + size2
+    }
+}
 
 /// This trait can be applied to types to enable them to encode and decode value to and from
 /// Protocol Buffers with the Length Delimited wire type.
@@ -79,4 +97,13 @@ pub trait LengthDelimited {
 ///
 /// These fields include the field number, the type of wire type encoding and the value of the
 /// attached type encoded.
-pub trait LengthDelimitedField: LengthDelimited {}
+pub trait LengthDelimitedField: LengthDelimited {
+    /// This function writes out a fixed32 field to the Protocol Buffer.
+    fn to_length_delimited_field(&self, field_number: u32, buffer: &mut Buffer) -> usize {
+        let tag = Tag::new(field_number, WireType::LengthDelimited);
+
+        let size1 = tag.to_varint(buffer);
+        let size2 = self.to_length_delimited(buffer);
+        size1 + size2
+    }
+}

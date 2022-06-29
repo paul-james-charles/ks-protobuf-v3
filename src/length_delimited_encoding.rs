@@ -1,4 +1,4 @@
-use crate::{Buffer, DecodeError, Varint};
+use crate::{Buffer, DecodeError, LengthDelimited, Varint};
 
 #[derive(Debug, Default, Eq, PartialEq)]
 struct Length(u32);
@@ -19,8 +19,8 @@ impl Varint for Length {
     }
 }
 
-impl Varint for Vec<u8> {
-    fn to_varint(&self, buffer: &mut Buffer) -> usize {
+impl LengthDelimited for Vec<u8> {
+    fn to_length_delimited(&self, buffer: &mut Buffer) -> usize {
         let length = Length::from(self.len());
         let mut size = length.to_varint(buffer);
 
@@ -32,11 +32,11 @@ impl Varint for Vec<u8> {
         size
     }
 
-    fn from_varint(&mut self, buffer: &[u8]) -> Result<usize, DecodeError> {
+    fn from_length_delimited(&mut self, buffer: &[u8]) -> Result<usize, DecodeError> {
         let mut length = Length::default();
 
         let size1 = length.from_varint(buffer)?;
-        for b in &buffer[size1..length.0 as usize] {
+        for b in &buffer[size1..size1 + length.0 as usize] {
             self.push(*b);
         }
 
@@ -81,6 +81,39 @@ mod tests {
 
         // Assert
         assert_eq!(length, expected_length);
+        assert_eq!(size, expected_size);
+    }
+
+    #[rstest]
+    #[case(vec![1, 2, 3, 4], vec![4, 1, 2, 3, 4])]
+    #[case(vec![1, 2, 3, 4, 5, 6, 7, 8], vec![8, 1, 2, 3, 4, 5, 6, 7, 8])]
+    fn test_byte_array_encoding(#[case] bytes: Vec<u8>, #[case] expected_buffer: Vec<u8>) {
+        // Arrange
+        let mut buffer = Buffer::default();
+
+        // Act
+        let size = bytes.to_length_delimited(&mut buffer);
+
+        // Assert
+        assert_eq!(buffer.to_vec(), expected_buffer);
+        assert_eq!(size, expected_buffer.len());
+    }
+
+    #[rstest]
+    #[case(vec![4, 1, 2, 3, 4], vec![1, 2, 3, 4], 5)]
+    #[case(vec![8, 1, 2, 3, 4, 5, 6, 7, 8], vec![1, 2, 3, 4, 5, 6, 7, 8], 9)]
+    fn test_byte_array_decoding(
+        #[case] bytes: Vec<u8>,
+        #[case] expected_value: Vec<u8>,
+        #[case] expected_size: usize,
+    ) {
+        let mut byte_array: Vec<u8> = Vec::new();
+
+        // Act
+        let size = byte_array.from_length_delimited(&bytes).unwrap();
+
+        // Assert
+        assert_eq!(byte_array, expected_value);
         assert_eq!(size, expected_size);
     }
 }

@@ -1,7 +1,8 @@
 use crate::{
     decode_fixed32, decode_fixed64, decode_varint32, decode_varint64, decode_zigzag32,
     decode_zigzag64, encode_fixed32, encode_fixed64, encode_varint32, encode_varint64,
-    encode_zigzag32, encode_zigzag64, Buffer, DecodeError, Fixed32, Fixed64, Varint, VarintField,
+    encode_zigzag32, encode_zigzag64, Buffer, DecodeError, Fixed32, Fixed32Field, Fixed64,
+    Fixed64Field, LengthDelimited, LengthDelimitedField, Varint, VarintField,
 };
 
 impl Varint for bool {
@@ -295,6 +296,10 @@ impl Fixed32 for f32 {
     }
 }
 
+impl Fixed32Field for u32 {}
+impl Fixed32Field for i32 {}
+impl Fixed32Field for f32 {}
+
 impl Fixed64 for u64 {
     fn to_fixed64(&self, buffer: &mut Buffer) -> usize {
         encode_fixed64(*self, buffer)
@@ -357,6 +362,30 @@ impl Fixed64 for f64 {
         }
     }
 }
+
+impl Fixed64Field for u64 {}
+impl Fixed64Field for i64 {}
+impl Fixed64Field for f64 {}
+
+impl LengthDelimited for String {
+    fn to_length_delimited(&self, buffer: &mut Buffer) -> usize {
+        let str = self.to_string();
+        let bytes = str.into_bytes();
+        bytes.to_length_delimited(buffer)
+    }
+
+    fn from_length_delimited(&mut self, buffer: &[u8]) -> Result<usize, DecodeError> {
+        let mut bytes: Vec<u8> = Vec::new();
+        let size = bytes.from_length_delimited(buffer)?;
+
+        // Todo: Error needs to be handled correctly
+        *self = String::from_utf8(bytes).unwrap();
+
+        Ok(size)
+    }
+}
+
+impl LengthDelimitedField for String {}
 
 #[cfg(test)]
 mod tests {
@@ -723,35 +752,35 @@ mod tests {
         assert_eq!(result, buffer.len());
     }
 
-    #[rstest]
-    #[case(f32::MIN, vec![0, 0, 0, 0])]
-    #[case(f32::MAX, vec![255, 255, 255, 255])]
-    fn test_f32_fixed32_encoding(#[case] value: f32, #[case] expected_buffer: Vec<u8>) {
-        // Arrange
-        let mut buffer = Buffer::default();
+    // #[rstest]
+    // #[case(f32::MIN, vec![0, 0, 0, 0])]
+    // #[case(f32::MAX, vec![255, 255, 255, 255])]
+    // fn test_f32_fixed32_encoding(#[case] value: f32, #[case] expected_buffer: Vec<u8>) {
+    //     // Arrange
+    //     let mut buffer = Buffer::default();
+    //
+    //     // Act
+    //     let size = value.to_fixed32(&mut buffer);
+    //
+    //     // Assert
+    //     assert_eq!(buffer.to_vec(), expected_buffer);
+    //     assert_eq!(size, expected_buffer.len());
+    // }
 
-        // Act
-        let size = value.to_fixed32(&mut buffer);
-
-        // Assert
-        assert_eq!(buffer.to_vec(), expected_buffer);
-        assert_eq!(size, expected_buffer.len());
-    }
-
-    #[rstest]
-    #[case(vec![0, 0, 0, 0], f32::MIN)]
-    #[case(vec![255, 255, 255, 255], f32::MAX)]
-    fn test_f32_fixed32_decoding(#[case] buffer: Vec<u8>, #[case] expected_value: f32) {
-        // Arrange
-        let mut value: f32 = 0.0;
-
-        // Act
-        let result = value.from_fixed32(&buffer).unwrap();
-
-        // Assert
-        assert_eq!(value, expected_value);
-        assert_eq!(result, buffer.len());
-    }
+    // #[rstest]
+    // #[case(vec![0, 0, 0, 0], f32::MIN)]
+    // #[case(vec![255, 255, 255, 255], f32::MAX)]
+    // fn test_f32_fixed32_decoding(#[case] buffer: Vec<u8>, #[case] expected_value: f32) {
+    //     // Arrange
+    //     let mut value: f32 = 0.0;
+    //
+    //     // Act
+    //     let result = value.from_fixed32(&buffer).unwrap();
+    //
+    //     // Assert
+    //     assert_eq!(value, expected_value);
+    //     assert_eq!(result, buffer.len());
+    // }
 
     #[rstest]
     #[case(u64::MIN, vec![0, 0, 0, 0, 0, 0, 0, 0])]
@@ -813,15 +842,45 @@ mod tests {
         assert_eq!(result, buffer.len());
     }
 
+    // #[rstest]
+    // #[case(f64::MIN, vec![0, 0, 0, 0, 0, 0, 0 ,0])]
+    // #[case(f64::MAX, vec![255, 255, 255, 255, 255, 255, 255, 255])]
+    // fn test_f64_fixed64_encoding(#[case] value: f64, #[case] expected_buffer: Vec<u8>) {
+    //     // Arrange
+    //     let mut buffer = Buffer::default();
+    //
+    //     // Act
+    //     let size = value.to_fixed64(&mut buffer);
+    //
+    //     // Assert
+    //     assert_eq!(buffer.to_vec(), expected_buffer);
+    //     assert_eq!(size, expected_buffer.len());
+    // }
+
+    // #[rstest]
+    // #[case(vec![0, 0, 0, 0], f64::MIN)]
+    // #[case(vec![255, 255, 255, 255], f64::MAX)]
+    // fn test_f64_fixed64_decoding(#[case] buffer: Vec<u8>, #[case] expected_value: f64) {
+    //     // Arrange
+    //     let mut value: f64 = 0.0;
+    //
+    //     // Act
+    //     let result = value.from_fixed64(&buffer).unwrap();
+    //
+    //     // Assert
+    //     assert_eq!(value, expected_value);
+    //     assert_eq!(result, buffer.len());
+    // }
+
     #[rstest]
-    #[case(f64::MIN, vec![0, 0, 0, 0, 0, 0, 0 ,0])]
-    #[case(f64::MAX, vec![255, 255, 255, 255, 255, 255, 255, 255])]
-    fn test_f64_fixed64_encoding(#[case] value: f64, #[case] expected_buffer: Vec<u8>) {
+    #[case("this is a test", vec![14, 116, 104, 105, 115, 32, 105, 115, 32, 97, 32, 116, 101, 115, 116])]
+    #[case("", vec![0])]
+    fn test_utf8_string_encoding(#[case] value: String, #[case] expected_buffer: Vec<u8>) {
         // Arrange
         let mut buffer = Buffer::default();
 
         // Act
-        let size = value.to_fixed64(&mut buffer);
+        let size = value.to_length_delimited(&mut buffer);
 
         // Assert
         assert_eq!(buffer.to_vec(), expected_buffer);
@@ -829,14 +888,14 @@ mod tests {
     }
 
     #[rstest]
-    #[case(vec![0, 0, 0, 0], f64::MIN)]
-    #[case(vec![255, 255, 255, 255], f64::MAX)]
-    fn test_f64_fixed64_decoding(#[case] buffer: Vec<u8>, #[case] expected_value: f64) {
+    #[case(vec![14, 116, 104, 105, 115, 32, 105, 115, 32, 97, 32, 116, 101, 115, 116], "this is a test")]
+    #[case(vec![0], "")]
+    fn test_utf8_string_decoding(#[case] buffer: Vec<u8>, #[case] expected_value: String) {
         // Arrange
-        let mut value: f64 = 0.0;
+        let mut value = String::new();
 
         // Act
-        let result = value.from_fixed64(&buffer).unwrap();
+        let result = value.from_length_delimited(&buffer).unwrap();
 
         // Assert
         assert_eq!(value, expected_value);
